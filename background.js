@@ -46,30 +46,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // ── Ollama integration ────────────────────────────────────────────────────────
 async function generatePatch({ userComplaint, domContext }) {
-  const systemPrompt = `You are a CSS/JS code generator for fixing UI usability issues.
-You receive:
-1. A user's natural-language complaint about a webpage element
-2. The relevant HTML/CSS of that element
+  const systemPrompt = `You are a JavaScript code generator. Output ONLY a single self-executing JavaScript function. No markdown, no backticks, no explanation.
 
-OUTPUT RULES — follow exactly:
-- Output ONLY raw JavaScript that can be injected directly into a page via eval()
-- Use document.querySelector() with the provided selector
-- Prefer CSS style property changes over adding new elements
-- Wrap your style changes in a <style> tag injected into <head> with id="friction-fixer-patch"
-- Do NOT output markdown, backticks, explanations, or comments
-- Your entire output must be valid JavaScript, nothing else
+The code MUST follow this exact pattern:
+(function(){
+  var s = document.createElement('style');
+  s.id = 'friction-fixer-patch';
+  s.textContent = 'SELECTOR { CSS_PROPERTY: VALUE !important; }';
+  document.head.appendChild(s);
+})();
 
-Example output format:
-(function(){const s=document.createElement('style');s.id='friction-fixer-patch';s.textContent='.some-selector{font-size:18px;color:#333;}';document.head.appendChild(s);})();`;
+Rules:
+- Use !important on every CSS value
+- Use the exact selector provided
+- Output nothing except the JavaScript function`;
 
-  const userPrompt = `User complaint: "${userComplaint}"
+  const userPrompt = `Fix this problem: "${userComplaint}"
 
-Relevant DOM element:
-Selector: ${domContext.selector}
-HTML: ${domContext.html}
-Computed styles (relevant): ${JSON.stringify(domContext.styles)}
+Element selector: ${domContext.selector}
+Element tag: ${domContext.tagName}
+Current font-size: ${domContext.styles.fontSize}
+Current color: ${domContext.styles.color}
+Current background: ${domContext.styles.backgroundColor}
 
-Generate a JavaScript patch to fix this issue.`;
+Output ONLY the JavaScript function. Start your response with (function(){`;
 
   const response = await fetch(OLLAMA_URL, {
     method: "POST",
@@ -87,23 +87,48 @@ Generate a JavaScript patch to fix this issue.`;
   }
 
   const data = await response.json();
-  return data.response.trim();
+  let code = data.response.trim();
+  // Strip markdown code fences gemma likes to add
+  code = code.replace(/^```[\w]*\n?/m, "").replace(/```$/m, "").trim();
+  return code;
 }
 
 // ── Patch injection ───────────────────────────────────────────────────────────
 async function applyPatch(tabId, patchCode) {
-  // Save patch to session storage for undo
   await chrome.storage.session.set({ lastPatch: patchCode, lastPatchTabId: tabId });
 
   await chrome.scripting.executeScript({
     target: { tabId },
     func: (code) => {
+      console.log("[FrictionFixer] Injecting patch:", code);
       try {
-        // Remove any previous patch first
+        // Remove any previous patch
         const existing = document.getElementById("friction-fixer-patch");
         if (existing) existing.remove();
-        // eslint-disable-next-line no-eval
-        eval(code);
+
+        // Extract the CSS string from inside s.textContent = '...';
+        // This avoids eval entirely — we just parse the CSS out and inject it directly
+        const match = code.match(/s\.textContent\s*=\s*'([\s\S]*?)'\s*;/);
+        if (match) {
+          const style = document.createElement("style");
+          style.id = "friction-fixer-patch";
+          style.textContent = match[1];
+          document.head.appendChild(style);
+          console.log("[FrictionFixer] Patch injected via CSS extraction:", match[1]);
+        } else {
+          // Fallback: try to find any CSS-like block in the code
+          const cssMatch = code.match(/\{[\s\S]*?\}/);
+          const selectorMatch = code.match(/['"]([^'"]+\{[\s\S]*?\})['"]/);
+          if (selectorMatch) {
+            const style = document.createElement("style");
+            style.id = "friction-fixer-patch";
+            style.textContent = selectorMatch[1];
+            document.head.appendChild(style);
+            console.log("[FrictionFixer] Patch injected via fallback extraction");
+          } else {
+            console.error("[FrictionFixer] Could not extract CSS from patch:", code);
+          }
+        }
       } catch (e) {
         console.error("[FrictionFixer] Patch failed:", e);
       }
@@ -111,7 +136,6 @@ async function applyPatch(tabId, patchCode) {
     args: [patchCode],
   });
 }
-
 async function undoPatch(tabId) {
   await chrome.scripting.executeScript({
     target: { tabId },
