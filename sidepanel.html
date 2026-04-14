@@ -15,6 +15,7 @@
       height: 100vh;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
 
     /* ── Header ── */
@@ -25,6 +26,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      flex-shrink: 0;
     }
     .header h1 {
       font-size: 14px;
@@ -36,6 +38,7 @@
       width: 7px; height: 7px;
       border-radius: 50%;
       background: #4ade80;
+      flex-shrink: 0;
     }
     .status-dot.offline { background: #f87171; }
 
@@ -49,6 +52,10 @@
       align-items: center;
       gap: 8px;
       min-height: 32px;
+      flex-shrink: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
     }
     #context-bar.empty { color: #6b7280; }
 
@@ -60,13 +67,15 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
+      min-height: 0;
     }
     .msg {
-      max-width: 90%;
+      max-width: 92%;
       padding: 8px 11px;
       border-radius: 10px;
       line-height: 1.5;
       font-size: 12.5px;
+      word-break: break-word;
     }
     .msg.user {
       align-self: flex-end;
@@ -84,44 +93,122 @@
       color: #86efac;
       font-size: 11px;
       border-radius: 6px;
+      max-width: 96%;
+      text-align: center;
+    }
+    .msg.socratic {
+      align-self: flex-start;
+      background: #1e3a5f;
+      color: #bae6fd;
+      border-left: 3px solid #38bdf8;
+      border-radius: 4px 10px 10px 4px;
+      font-style: italic;
     }
 
-    /* ── Preview sandbox ── */
-    #preview-sandbox {
-      margin: 0 12px;
+    /* ── Preview Card ── */
+    #preview-card {
+      margin: 6px 12px;
       background: #0f172a;
       border: 1px solid #334155;
       border-radius: 10px;
       overflow: hidden;
       display: none;
+      flex-shrink: 0;
     }
-    #preview-sandbox.visible { display: block; }
-    .sandbox-header {
+    #preview-card.visible { display: block; }
+
+    .card-header {
       background: #1e293b;
-      padding: 7px 12px;
-      font-size: 11px;
-      color: #94a3b8;
+      padding: 8px 12px;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
+      border-bottom: 1px solid #334155;
     }
-    #patch-preview {
-      font-family: 'SF Mono', 'Fira Mono', monospace;
+    .card-header-title {
       font-size: 11px;
-      color: #a5f3fc;
+      color: #94a3b8;
+      flex: 1;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Strategy badge pill */
+    .strategy-badge {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+    .strategy-badge.Conservation  { background: #1d4ed8; color: #bfdbfe; }
+    .strategy-badge.Rearrangement { background: #b45309; color: #fde68a; }
+    .strategy-badge.Simplification{ background: #065f46; color: #a7f3d0; }
+    .strategy-badge.Reduction     { background: #9f1239; color: #fecdd3; }
+    .strategy-badge.Increase      { background: #5b21b6; color: #ddd6fe; }
+
+    .card-body {
       padding: 10px 12px;
-      max-height: 140px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .card-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #64748b;
+      margin-bottom: 3px;
+    }
+    .card-section-text {
+      font-size: 12px;
+      line-height: 1.55;
+      color: #cbd5e1;
+    }
+    #card-diagnosis { color: #fbbf24; } /* amber — signals a problem */
+    #card-rationale { color: #86efac; } /* green  — signals a solution  */
+
+    /* Collapsible code block */
+    details.card-code {
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    details.card-code summary {
+      padding: 5px 10px;
+      font-size: 10px;
+      color: #64748b;
+      cursor: pointer;
+      user-select: none;
+      background: #1e293b;
+      list-style: none;
+    }
+    details.card-code summary::before { content: "▶ "; }
+    details.card-code[open] summary::before { content: "▼ "; }
+    #card-code-preview {
+      font-family: 'SF Mono', 'Fira Mono', monospace;
+      font-size: 10.5px;
+      color: #a5f3fc;
+      padding: 8px 10px;
+      max-height: 100px;
       overflow-y: auto;
       white-space: pre-wrap;
       word-break: break-all;
+      background: #020617;
     }
-    .sandbox-actions {
+
+    .card-actions {
       display: flex;
       gap: 8px;
       padding: 8px 12px;
       border-top: 1px solid #1e293b;
     }
-    .btn-accept {
+    .btn-approve {
       flex: 1;
       padding: 7px;
       background: #15803d;
@@ -132,8 +219,9 @@
       font-size: 12px;
       font-weight: 600;
     }
-    .btn-accept:hover { background: #166534; }
-    .btn-reject {
+    .btn-approve:hover:not(:disabled) { background: #166534; }
+    .btn-approve:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+    .btn-reject-card {
       flex: 1;
       padding: 7px;
       background: #7f1d1d;
@@ -144,7 +232,7 @@
       font-size: 12px;
       font-weight: 600;
     }
-    .btn-reject:hover { background: #991b1b; }
+    .btn-reject-card:hover { background: #991b1b; }
 
     /* ── Toolbar ── */
     .toolbar {
@@ -153,6 +241,8 @@
       padding: 8px 12px;
       border-top: 1px solid #2d2d50;
       border-bottom: 1px solid #2d2d50;
+      flex-shrink: 0;
+      flex-wrap: wrap;
     }
     .btn-tool {
       padding: 5px 10px;
@@ -173,6 +263,7 @@
       display: flex;
       gap: 8px;
       padding: 10px 12px;
+      flex-shrink: 0;
     }
     #complaint-input {
       flex: 1;
@@ -184,11 +275,16 @@
       font-size: 12.5px;
       resize: none;
       min-height: 40px;
-      max-height: 100px;
+      max-height: 80px;
       font-family: inherit;
+      line-height: 1.4;
     }
     #complaint-input:focus { outline: none; border-color: #7c3aed; }
     #complaint-input::placeholder { color: #475569; }
+    #complaint-input.socratic-mode {
+      border-color: #38bdf8;
+      background: #0c1e30;
+    }
     #btn-send {
       padding: 8px 14px;
       background: #7c3aed;
@@ -199,9 +295,12 @@
       font-size: 13px;
       align-self: flex-end;
       font-weight: 600;
+      flex-shrink: 0;
     }
     #btn-send:hover { background: #6d28d9; }
     #btn-send:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+    #btn-send.socratic-mode { background: #0284c7; }
+    #btn-send.socratic-mode:hover { background: #0369a1; }
 
     /* ── Loading spinner ── */
     .spinner {
@@ -212,6 +311,7 @@
       border-radius: 50%;
       animation: spin .7s linear infinite;
       vertical-align: middle;
+      margin-right: 6px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
@@ -220,30 +320,45 @@
 
   <div class="header">
     <div class="status-dot" id="ollama-status"></div>
-    <h1>⚡ Friction Fixer</h1>
+    <h1>Friction Fixer</h1>
   </div>
 
   <div id="context-bar" class="empty">No element captured — use Inspector to pick one</div>
 
   <div id="chat">
-    <div class="msg system">👋 Pick an element with Inspector, then describe what's wrong.</div>
+    <div class="msg system">Pick an element with Inspector, then describe what's wrong.</div>
   </div>
 
-  <div id="preview-sandbox">
-    <div class="sandbox-header">
-      <span>🔍 Proposed patch — review before applying</span>
+  <!-- ── Preview Card ── -->
+  <div id="preview-card">
+    <div class="card-header">
+      <span class="card-header-title">AI Patch Proposal</span>
+      <span class="strategy-badge" id="strategy-badge">Strategy</span>
     </div>
-    <pre id="patch-preview"></pre>
-    <div class="sandbox-actions">
-      <button class="btn-accept" id="btn-accept">✓ Accept &amp; Apply</button>
-      <button class="btn-reject" id="btn-reject">✕ Reject</button>
+    <div class="card-body">
+      <div>
+        <div class="card-section-label">UX Diagnosis</div>
+        <div class="card-section-text" id="card-diagnosis"></div>
+      </div>
+      <div>
+        <div class="card-section-label">Why this patch?</div>
+        <div class="card-section-text" id="card-rationale"></div>
+      </div>
+      <details class="card-code">
+        <summary>View CSS code</summary>
+        <pre id="card-code-preview"></pre>
+      </details>
+    </div>
+    <div class="card-actions">
+      <button class="btn-approve" id="btn-approve">Approve Patch</button>
+      <button class="btn-reject-card" id="btn-reject-card">Reject</button>
     </div>
   </div>
 
   <div class="toolbar">
-    <button class="btn-tool" id="btn-inspector">🔎 Inspector</button>
-    <button class="btn-tool" id="btn-clear-ctx">⊘ Clear ctx</button>
-    <button class="btn-tool" id="btn-undo">↩ Undo patch</button>
+    <button class="btn-tool" id="btn-inspector">Inspector</button>
+    <button class="btn-tool" id="btn-clear-ctx">Clear ctx</button>
+    <button class="btn-tool" id="btn-undo">Undo patch</button>
   </div>
 
   <div class="input-row">
